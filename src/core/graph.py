@@ -19,8 +19,8 @@ from src.config import (MAP_DIRECTORY, MAP_FILENAME)
 from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
-from src.model.node import Node
-from src.model.edge import Edge
+from src.models.node import Node
+from src.models.edge import Edge
 from os import path
 """
 Example simulation: 

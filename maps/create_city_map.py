@@ -9,7 +9,8 @@ import argparse
 
 # Configuration and defaults
 #DEFAULT_CITY_NAME = "Downtown Austin, Texas, USA"
-DEFAULT_CITY_NAME = "San Francisco, California, USA"
+#DEFAULT_CITY_NAME = "San Francisco, California, USA"
+DEFAULT_CITY_NAME = "Bengaluru, Karnataka, India"
 DEFAULT_NETWORK_TYPE = "drive"
 DEFAULT_OUTPUT_FILE = Path(__file__).parent / "static_city_map.graphml"
 
