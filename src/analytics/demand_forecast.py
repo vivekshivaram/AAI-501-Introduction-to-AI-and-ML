@@ -2,13 +2,13 @@
 demand_forecast.py
 Feature 3: Macro Demand Forecaster
 
-Generates a 24-step hourly order volume forecast using Holt-Winters exponential
-smoothing (additive trend + additive seasonality, period = 24 h).
+Generates a 24-step hourly order volume forecast using SARIMA(1,0,1)(1,1,1,24).
+The seasonal period is 24 h (daily delivery cycle).
 
 Output feeds the reinforcement learning state matrix (Engineer 3).
 
 Deliverable: data/outputs/demand_forecast.json
-  Schema: {"hourly_forecast": [float × 24]}
+  Schema: {"hourly_forecast": [float x 24]}
 
 Usage (from project root):
     python -m src.analytics.demand_forecast
@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 warnings.filterwarnings("ignore")
 
@@ -41,8 +41,9 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 _SEASONAL_PERIOD = 24        # daily cycle
-_MIN_HOURS_REQUIRED = 48     # 2 full seasonal cycles needed by Holt-Winters
+_MIN_HOURS_REQUIRED = 48     # at least 2 full seasonal cycles for SARIMA
 _FORECAST_STEPS = 24         # 24-hour ahead forecast
+_FIT_WINDOW_HOURS = 672      # use last 28 days for fitting (speed vs. accuracy)
 
 
 def _synthesize_series(df: pd.DataFrame, span_hours: float) -> pd.Series:
@@ -86,7 +87,7 @@ def forecast_demand(
     output_path: Path | None = None,
 ) -> list[float]:
     """
-    Fit Holt-Winters on mapped order timestamps and produce a 24-hour forecast.
+    Fit SARIMA(1,0,1)(1,1,1,24) on mapped order timestamps and produce a 24-hour forecast.
 
     Parameters
     ----------
@@ -159,27 +160,30 @@ def forecast_demand(
     )
 
     # ------------------------------------------------------------------ #
-    # 3. Holt-Winters fit
+    # 3. SARIMA(1,0,1)(1,1,1,24) fit
     # ------------------------------------------------------------------ #
-    hw = ExponentialSmoothing(
-        hourly.values.astype(float),
-        trend="add",
-        seasonal="add",
-        seasonal_periods=_SEASONAL_PERIOD,
-    ).fit(optimized=True)
+    # Trim to last 28 days to keep fitting time manageable
+    fit_series = hourly.iloc[-_FIT_WINDOW_HOURS:] if len(hourly) > _FIT_WINDOW_HOURS else hourly
+    logger.info(f"Fitting SARIMA on {len(fit_series)} hours ({len(fit_series)//24} days) ...")
+
+    model = SARIMAX(
+        fit_series.values.astype(float),
+        order=(1, 0, 1),
+        seasonal_order=(1, 1, 1, _SEASONAL_PERIOD),
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    )
+    result = model.fit(disp=False, method="powell")
 
     logger.info(
-        f"Holt-Winters fitted - "
-        f"alpha={hw.params['smoothing_level']:.4f}, "
-        f"beta={hw.params['smoothing_trend']:.4f}, "
-        f"gamma={hw.params['smoothing_seasonal']:.4f} | "
-        f"AIC={hw.aic:.2f}"
+        f"SARIMA(1,0,1)(1,1,1,24) fitted | "
+        f"AIC={result.aic:.2f} | BIC={result.bic:.2f}"
     )
 
     # ------------------------------------------------------------------ #
     # 4. 24-step forecast
     # ------------------------------------------------------------------ #
-    raw_forecast = hw.forecast(_FORECAST_STEPS)
+    raw_forecast = result.forecast(steps=_FORECAST_STEPS)
     forecast_values = [round(float(v), 2) for v in np.maximum(0.0, raw_forecast)]
 
     # --- JSON (consumed by RL agent) ---
@@ -219,7 +223,7 @@ def forecast_demand(
     hours = list(range(24))
     bars = ax.bar(hours, forecast_values, color="steelblue", alpha=0.8, edgecolor="white")
     ax.bar_label(bars, fmt="%.1f", fontsize=7, padding=2)
-    ax.set_title("24-Hour Ahead Demand Forecast (Holt-Winters)")
+    ax.set_title("24-Hour Ahead Demand Forecast (SARIMA)")
     ax.set_xlabel("Hour offset from now")
     ax.set_ylabel("Forecast orders per hour")
     ax.set_xticks(hours)
