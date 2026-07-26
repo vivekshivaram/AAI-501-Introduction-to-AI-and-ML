@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from core.graph import Graph
+from graph.graph import Graph
 
 from models.order import Order
 from models.vehicle import Vehicle

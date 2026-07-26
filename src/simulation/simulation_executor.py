@@ -9,7 +9,16 @@ class SimulationExecutor:
         rl_agent,
         movement_engine,
     ):
-        #TODO - Implementation pending
+        self.sampler = sampler
+        self.inspector = inspector
+        # predictor implements predict(context) — fulfilled by DelayPredictor
+        # from src.analytics.delay_model, which populates context.delay_map
+        # and sets order.predicted_delay before dispatching.
+        self.predictor = predictor
+        self.dispatcher = dispatcher
+        self.environment = rl_environment
+        self.agent = rl_agent
+        self.movement_engine = movement_engine
 
     def execute_tick(
         self,
