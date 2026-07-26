@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.graph import Graph
+from graph.graph import Graph
 
 from models.vehicle import Vehicle
 

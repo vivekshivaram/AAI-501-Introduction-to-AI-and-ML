@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Logs
+logs/
+*.log
+
+# Cache
+cache/
+__pycache__/
+.pytest_cache/
+
+# Data
+data/raw/*graphml 
+
+#output
+data/outputs/
+data/interim/
+
+# Artifacts
+artifacts/
