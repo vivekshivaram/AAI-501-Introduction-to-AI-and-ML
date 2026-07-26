@@ -1,0 +1,15 @@
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+MAP_DIRECTORY = ROOT_DIR / "maps"
+DATA_DIRECTORY = ROOT_DIR / "data"
+LOG_DIRECTORY = ROOT_DIR / "logs"
+
+MAP_FILENAME = "static_city_map.graphml"
+
+DEFAULT_SPEED_KMH = 40
+SIMULATION_STEP_SECONDS = 60
+MAX_SIMULATION_STEPS = 1000
+DEFAULT_VEHICLE_CAPACITY = 50
+LOG_LEVEL = "INFO"
