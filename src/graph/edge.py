@@ -7,3 +7,8 @@ class Edge:
     length: float
     travel_time: float
     speed_kph: float
+    
+    @property
+    def endpoints(self) -> tuple[int, int]:
+        """Return the edge endpoints as a (source, destination) tuple."""
+        return self.source, self.destination
