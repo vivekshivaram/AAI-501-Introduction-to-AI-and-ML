@@ -1,25 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from src.graph.node import Node
+from src.graph.edge import Edge
+
 
 @dataclass(frozen=True, slots=True)
 class Path:
     """
-    Represents the result of a routing algorithm.
-    Attributes:
-        nodes:
-            Ordered list of Nodes.
-        total_distance:
-            Total route length in metres.
-        total_travel_time:
-            Total travel time in seconds.
-        total_cost:
-            Cost used by the planner.
-            Initially equals travel time.
-            Can later include RF delay penalties.
+    Result of a routing algorithm.
     """
     nodes: list[Node]
+    edges: list[Edge]
     total_distance: float
     total_travel_time: float
     total_cost: float
@@ -33,9 +26,13 @@ class Path:
         return self.nodes[-1]
 
     @property
+    def edge_count(self) -> int:
+        return len(self.edges)
+
+    @property
     def node_count(self) -> int:
         return len(self.nodes)
 
     @property
     def is_empty(self) -> bool:
-        return len(self.nodes) == 0
+        return not self.nodes

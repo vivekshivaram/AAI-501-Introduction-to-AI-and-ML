@@ -98,9 +98,9 @@ class Graph:
         self._ensure_loaded()
         return self.graph.has_edge(edge.source, edge.destination)
 
-    def has_node(self, node: Node) -> bool:
+    def has_node(self, node: int) -> bool:
         self._ensure_loaded()
-        return self.graph.has_node(node.id)
+        return self.graph.has_node(node)
         
     def get_edge(self, source: int, destination: int) -> Edge:
         self._ensure_loaded()
@@ -203,7 +203,7 @@ class Graph:
         edges: list[Edge] = []
 
         # MultiDiGraph.adj[node] -> {neighbor: {key: attributes}}
-        for destination, parallel_edges in self._graph.adj[node_id].items():
+        for destination, parallel_edges in self.graph.adj[node_id].items():
             #
             # There may be multiple parallel roads between
             # the same two intersections.
