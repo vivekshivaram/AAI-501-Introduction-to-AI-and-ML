@@ -42,9 +42,9 @@ AAI-501-Introduction-to-AI-and-ML/
     ├── models/          # order.py · vehicle.py · states.py
     ├── analytics/       # delay_model.py · demand_forecast.py
     ├── routing/         # dynamic_astar.py
-    ├── optimization/    # astar_routing.py · cvrptw_dispatcher.py         [TODO]
+    ├── optimization/    # astar_routing.py · cvrptw_dispatcher.py · cvrptw_dispatcher_milp.py · dispatcher_config.py
     ├── ai/              # img_loader.py · pricing_env.py · pricing_engine.py [TODO]
-    ├── simulation/      # executor · context · movement · events
+    ├── simulation/      # executor · context · movement · events · delay_map · route · simulation_clock · simulation_context · vehicle_position
     ├── utils/           # logger · geo_utils
     └── main.py          # master script — runs the full simulation          [TODO]
 ```
@@ -218,8 +218,6 @@ The `SimulationContext` object is the shared handoff between all three engineers
 ## Remaining Work
 
 ### Infrastructure & Optimization
-- [ ] `src/optimization/astar_routing.py` — informed A\* using embedded speed/length fields
-- [ ] `src/optimization/cvrptw_dispatcher.py` — PuLP MILP solver for multi-vehicle routing with time windows
 - [ ] `src/main.py` — master script wiring all components into a single simulation run
 - [ ] Reward formula `Reward = Revenue − Delay` shared with the pricing team
 
