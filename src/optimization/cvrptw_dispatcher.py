@@ -1,4 +1,5 @@
 """cvrptw_dispatcher.py"""
+
 from collections import defaultdict
 from src.models.order import Order
 from src.models.vehicle import Vehicle
