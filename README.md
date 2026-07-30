@@ -178,6 +178,11 @@ from src.analytics.delay_model import DelayPredictor
 from src.routing.dynamic_astar import DynamicAStar
 from src.simulation.simulation_executor import SimulationExecutor
 from src.simulation.simulation_context import SimulationContext
+from src.optimization.cvrptw_dispatcher_milp import CVRPTWDispatcherMilp
+from src.optimization.astart_routing import AStarRouting
+from src.routing.heuristic import TravelTimeHeuristic
+from src.simulation.delay_map import DelayMap
+from src.optimization.dispatcher_config import DispatcherConfig
 
 graph = Graph()
 graph.load()
@@ -185,11 +190,16 @@ graph.load()
 predictor = DelayPredictor()          # delay regression model
 router    = DynamicAStar(graph, predictor)
 
+heuristic = TravelTimeHeuristic(60.0)
+astar_routing = AStarRouting(graph, heuristic, DelayMap())
+config = DispatcherConfig()
+dispatcher = CVRPTWDispatcherMilp(astar_routing, config)
+
 executor = SimulationExecutor(
     sampler        = ...,             # samples orders from dataset each tick
     inspector      = ...,             # ResNet18 CNN — Intact / Damaged classification
     predictor      = predictor,       # RandomForest — predicts edge delay penalties
-    dispatcher     = ...,             # PuLP CVRPTW — multi-vehicle route assignment
+    dispatcher     = dispatcher,      # PuLP CVRPTW — multi-vehicle route assignment
     rl_environment = ...,             # Gymnasium env — queue-state pricing environment
     rl_agent       = ...,             # Q-table agent — surge multiplier decisions
     movement_engine= ...,             # advances vehicles one edge per tick
