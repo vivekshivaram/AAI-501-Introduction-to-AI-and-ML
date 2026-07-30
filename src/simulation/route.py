@@ -1,6 +1,8 @@
+from src.graph.node import Node
+
 @dataclass
 class Route:
-    nodes: list[int]
+    nodes: list[Node]
     total_distance: float
     estimated_time: float
     route_cost: float

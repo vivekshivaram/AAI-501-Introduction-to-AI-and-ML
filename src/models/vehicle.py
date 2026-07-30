@@ -1,3 +1,5 @@
+from src.simulation.route import Route
+
 @dataclass
 class Vehicle:
     vehicle_id: str
