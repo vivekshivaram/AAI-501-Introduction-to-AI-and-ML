@@ -13,6 +13,8 @@ from pathlib import Path
 
 import networkx as nx
 import osmnx as ox
+from src.config import DEFAULT_SPEED_KMH
+from src.routing.exceptions import InvalidNodeError
 
 from src.config import (MAP_DIRECTORY, MAP_FILENAME)
 
@@ -36,6 +38,7 @@ neighbors = graph.neighbors(vehicle.current_node)
 class Graph:
     def __init__(self):
         self.graph = None
+        self._node_id_map = {}
 
     def load(self, graph_path:str = MAP_DIRECTORY / MAP_FILENAME):
         """
@@ -49,6 +52,10 @@ class Graph:
         logger.info("Graph loaded successfully.")
         logger.info(f"Nodes : {len(self.graph.nodes)}")
         logger.info(f"Edges : {len(self.graph.edges)}")
+        ###
+        for id in self.graph.nodes:
+            self._node_id_map[id] = self._get_node(id)
+        ###
         return self.graph
         
     def _ensure_loaded(self):
@@ -81,8 +88,8 @@ class Graph:
     def edge_count(self) -> int:
         self._ensure_loaded()
         return self.graph.number_of_edges()
-        
-    def get_node(self, node_id: int) -> Node:
+
+    def _get_node(self, node_id: int) -> Node:
         self._ensure_loaded()
         if not self.has_node(node_id):
             raise KeyError(f"Unknown node {node_id}")
@@ -93,10 +100,14 @@ class Graph:
             latitude=node["y"],
             longitude=node["x"],
         )
-
-    def has_edge(self, edge: Edge):
+        
+    def get_node(self, node_id: int) -> Node:
         self._ensure_loaded()
-        return self.graph.has_edge(edge.source, edge.destination)
+        return self._node_id_map.get(node_id, None)
+
+    def has_edge(self, source: int, destination: int):
+        self._ensure_loaded()
+        return self.graph.has_edge(source, destination)
 
     def has_node(self, node: int) -> bool:
         self._ensure_loaded()
@@ -116,9 +127,9 @@ class Graph:
             speed_kph=edge.get("speed_kph", 0.0),
         )
 
-    def nearest_node(self, node: Node) -> Node:
+    def nearest_node(self, latitude: float, longitude: float) -> Node:
         self._ensure_loaded()
-        return self.get_node(node_id = ox.distance.nearest_nodes(self.graph, X=node.longitude,Y=node.latitude))
+        return self.get_node(node_id = ox.distance.nearest_nodes(self.graph, X=longitude,Y=latitude))
 
     def nearest_nodes(self, nodes: list[Node]) -> list[Node]:
         self._ensure_loaded()
@@ -152,11 +163,11 @@ class Graph:
 
         return total
  
-    def travel_time(self, source: id, destination: id) -> float:
+    def travel_time(self, source: int, destination: int) -> float:
         path = self.shortest_path(source,destination, weight="travel_time")
         total = 0.0
         for u, v in zip(path[:-1], path[1:]):
-            edge = self.get_edge(u, v)
+            edge = self.get_edge(u.id, v.id)
             total += edge.travel_time
 
         return total
@@ -195,7 +206,7 @@ class Graph:
             InvalidNodeError: If the node does not exist.
         """
         self._ensure_loaded()
-        if not self.has_node(self.get_node(node_id)):
+        if not self.get_node(node_id):
             raise InvalidNodeError(
                 f"Node {node_id} does not exist."
             )
