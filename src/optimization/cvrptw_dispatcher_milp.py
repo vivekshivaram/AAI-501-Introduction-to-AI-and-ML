@@ -12,6 +12,7 @@ import pulp
 
 from src.optimization.astar_routing import AStarRouting
 from src.optimization.dispatcher_config import DispatcherConfig
+from src.optimization.dispatch_result import (DispatchAssignment, DispatchResult)
 
 from src.models.order import Order
 from src.models.vehicle import Vehicle
@@ -46,7 +47,7 @@ class CVRPTWDispatcherMilp:
         self._costs: Dict[Tuple[str, str], float,] = {}
     # ------------------------------------------------------------------
 
-    def dispatch(self, vehicles: list[Vehicle], orders: list[Order], tick: int) -> None:
+    def dispatch(self, vehicles: list[Vehicle], orders: list[Order], tick: int) -> DispatchResult:
         """
         Dispatch available vehicles.
         Parameters
@@ -76,8 +77,10 @@ class CVRPTWDispatcherMilp:
         self._build_objective(problem, assignment)
         self._assignment_constraints(problem, assignment, available_vehicles, pending_orders)
         self._capacity_constraints(problem, assignment, available_vehicles, pending_orders)
-        self._solve(problem, assignment, available_vehicles, pending_orders, tick)
+        (status, dispatch_assignments) = self._solve(problem, assignment, available_vehicles, pending_orders, tick)
+        return DispatchResult(tick=tick, status=status, assignments=dispatch_assignments)
 
+        
     def _build_cost_matrix(self, vehicles: list[Vehicle], orders: list[Order]) -> None:
         """
         Computes
@@ -156,7 +159,8 @@ class CVRPTWDispatcherMilp:
             return
 
         logger.info(f"Assigned {len(assignments)} orders.")
-        self._apply_assignments(assignments, vehicles, orders, tick)
+        return (status, self._build_dispatch_assignments(assignments, vehicles, orders))
+        #self._apply_assignments(assignments, vehicles, orders, tick)
         
 
     def _extract_assignments(self, assignment, vehicles, orders) -> list[]:
@@ -177,6 +181,35 @@ class CVRPTWDispatcherMilp:
             
         return selected
 
+
+    def _build_dispatch_assignments(self, assignments, vehicles, orders, tick: int) -> DispatchAssignment
+        dispatch_assignments = []
+        for vehicle, order in assignments:
+            route = self._build_route(vehicle, order)
+            vehicle.current_route = route
+            vehicle.available = False
+            vehicle.current_load = order.weight
+            vehicle.assigned_orders.append(order.order_id)
+            #
+            # Vehicle will start from the pickup node.
+            # The simulation is expected to update this
+            # as the vehicle traverses the route.
+            #
+            vehicle.current_node = order.pickup_node
+            order.assigned_vehicle = vehicle.vehicle_id
+            order.assigned_tick = tick
+            logger.info(f"Vehicle {vehicle.vehicle_id} dispatched for Order {order.order_id}")
+            dispatch_assignments.append(DispatchAssignment
+                                            (
+                                                vehicle_id=vehicle.vehicle_id,
+                                                order_id=order.order_id,
+                                                route=route,
+                                                objective_cost=route.route_cost
+                                            )
+                                       )
+
+        return dispatch_assignments
+                                    
 
     def _apply_assignments(self, assignments, vehicles, orders, tick: int) -> None:
         """
