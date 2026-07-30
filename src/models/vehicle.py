@@ -6,6 +6,7 @@ class Vehicle:
     capacity: float
     max_speed_kmh: float
     home_node: int
+    current_node: int
     current_load: float = 0.0
     available: bool = True
     current_route: Route | None = None
