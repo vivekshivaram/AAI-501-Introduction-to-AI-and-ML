@@ -45,6 +45,13 @@ AAI-501-Introduction-to-AI-and-ML/
     ├── routing/
     │   └── dynamic_astar.py       # DynamicAStar — A* with ML delay penalties on edges
     │
+    ├── optimization/
+    │   └── astar_routing.py       # A* Star Search based routing vehicles for delivery
+    │   ├── cvrptw_dispatcher.py   # Greedy algorithm based Capacitated Vehicle Route Dispatcher
+    │   ├── cvrptw_dispatch_milp.py# MILP model based Capacitated Vehicle Route Dispatcher
+    │   ├── dipatch_result.py      # The result object from dispatcher
+    │   ├── dispatch_config.py     # Data model config used by Dispatcher   
+    │
     ├── simulation/                # Tick-based simulation engine
     │   ├── simulation_executor.py # Orchestrates all 7 steps per tick
     │   ├── simulation_context.py  # Shared mutable state for one simulation run
