@@ -28,12 +28,13 @@ Each simulation tick models one real-world dispatch cycle:
 AAI-501-Introduction-to-AI-and-ML/
 ├── data/
 │   ├── raw/            # amazon_delivery.csv · static_city_map.graphml
+│   │   └── damaged_box/ # Kaggle damaged-box dataset for Vision & RL
 │   ├── interim/        # mapped_orders.pkl
 │   └── outputs/        # demand_forecast.json · diagnostic plots
 ├── artifacts/          # Trained model bundles (gitignored)
 │   ├── delay_forest.pkl        # RandomForest regressor — delay prediction
-│   ├── package_cnn.pt          # ResNet18 binary classifier — package inspection  [TODO]
-│   └── q_table.npy             # Q-Learning weight matrix — surge pricing         [TODO]
+│   ├── package_cnn.pt          # ResNet18 binary classifier — package inspection
+│   └── q_table.npy             # Q-Learning weight matrix — surge pricing
 ├── logs/               # simulation.log (auto-created)
 └── src/
     ├── config.py        # single source of truth for all paths & constants
@@ -43,10 +44,11 @@ AAI-501-Introduction-to-AI-and-ML/
     ├── analytics/       # delay_model.py · demand_forecast.py
     ├── routing/         # dynamic_astar.py
     ├── optimization/    # astar_routing.py · cvrptw_dispatcher.py · cvrptw_dispatcher_milp.py · dispatcher_config.py
-    ├── ai/              # img_loader.py · pricing_env.py · pricing_engine.py [TODO]
+    ├── ai/              # img_loader.py · pricing_env.py · pricing_engine.py
+    │   └── Vision_RL_doc.md  # step-by-step guide for the Vision & RL implementation
     ├── simulation/      # executor · context · movement · events · delay_map · route · simulation_clock · simulation_context · vehicle_position
     ├── utils/           # logger · geo_utils
-    └── main.py          # master script — runs the full simulation          [TODO]
+    └── main.py          # master script — runs the full simulation
 ```
 
 ---
@@ -135,13 +137,19 @@ python -m src.analytics.demand_forecast
 
 ---
 
-### Step 5 — Train the CNN Inspector *(TODO)*
+### Step 5 — Train the CNN Inspector
+
+First download the damaged-box images into `data/raw/`:
+
+```bash
+python -m src.ingestion.download_damaged_box
+```
 
 Fine-tunes ResNet18 on the damaged-box dataset to classify packages as Intact or Damaged.
 
 ```bash
-python -m src.ai.img_loader      # preprocess package images
-python -m src.ai.pricing_env     # verify Gymnasium env skeleton
+python -m src.ai.img_loader data/raw/damaged_box
+python -m src.ai.pricing_engine --train-cnn data/raw/damaged_box
 ```
 
 **Dataset:** [Damaged Box — Kaggle](https://www.kaggle.com/datasets/teomingzhe/damaged-box)  
@@ -149,12 +157,12 @@ python -m src.ai.pricing_env     # verify Gymnasium env skeleton
 
 ---
 
-### Step 6 — Train the Q-Learning Agent *(TODO)*
+### Step 6 — Train the Q-Learning Agent
 
 Trains the tabular Q-table to set surge multipliers based on queue state and demand forecast.
 
 ```bash
-python -m src.ai.pricing_engine
+python -m src.ai.pricing_engine --train-q-table
 ```
 
 **Input:** `data/outputs/demand_forecast.json` · reward formula `Reward = Revenue − Delay`  
@@ -162,7 +170,7 @@ python -m src.ai.pricing_engine
 
 ---
 
-### Step 7 — Run the Full Simulation *(TODO)*
+### Step 7 — Run the Full Simulation
 
 Once all artifacts are in place, the master script wires all components:
 
@@ -219,7 +227,7 @@ for tick in range(1000):
 |---|---|---|---|
 | Infrastructure & Optimization | `src/graph/` `src/simulation/` `src/optimization/` | `static_city_map.graphml` · `astar_routing.py` · `cvrptw_dispatcher.py` · `main.py` | Partial |
 | Data Engineering & ML | `src/ingestion/` `src/analytics/` `src/routing/` | `mapped_orders.pkl` · `delay_forest.pkl` · `demand_forecast.json` · `dynamic_astar.py` | **Complete** |
-| Vision & RL | `src/ai/` | `package_cnn.pt` · `q_table.npy` · `pricing_env.py` · `pricing_engine.py` | TODO |
+| Vision & RL | `src/ai/` | `package_cnn.pt` · `q_table.npy` · `pricing_env.py` · `pricing_engine.py` | Complete |
 
 The `SimulationContext` object is the shared handoff between all three engineers each tick.
 
@@ -232,11 +240,11 @@ The `SimulationContext` object is the shared handoff between all three engineers
 - [ ] Reward formula `Reward = Revenue − Delay` shared with the pricing team
 
 ### Vision & RL
-- [ ] `src/ai/img_loader.py` — PyTorch DataLoader for damaged-box package images
-- [ ] `src/ai/pricing_env.py` — `gymnasium.Env` subclass; 5-action discrete space (+0 % to +50 %); 5×5 state matrix (queue length × demand bucket)
-- [ ] Fine-tune ResNet18 (freeze backbone, replace final layer with binary head) → `artifacts/package_cnn.pt`
-- [ ] Train tabular Q-table using `Reward = Revenue − Delay`; inject `demand_forecast.json` into state → `artifacts/q_table.npy`
-- [ ] `src/ai/pricing_engine.py` — operational wrapper connecting Q-table to live simulation context
+- [x] `src/ai/img_loader.py` — PyTorch DataLoader for damaged-box package images
+- [x] `src/ai/pricing_env.py` — `gymnasium.Env` subclass; 5-action discrete space (+0 % to +50 %); 5×5 state matrix (queue length × demand bucket)
+- [x] Fine-tune ResNet18 (freeze backbone, replace final layer with binary head) → `artifacts/package_cnn.pt`
+- [x] Train tabular Q-table using `Reward = Revenue − Delay`; inject `demand_forecast.json` into state → `artifacts/q_table.npy`
+- [x] `src/ai/pricing_engine.py` — operational wrapper connecting Q-table to live simulation context
 
 ---
 
