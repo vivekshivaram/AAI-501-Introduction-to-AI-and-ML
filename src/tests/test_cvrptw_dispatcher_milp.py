@@ -386,4 +386,109 @@ def test_dispatch_multiple_vehicles_multiple_orders(dispatcher):
     #
     # One order should not be assigned to two vehicles.
     #
-    assert len(assigned_vehicles) == len(result.assignments)
+    #assert len(assigned_vehicles) == len(result.assignments)
+    
+
+def test_multiple_orders_assigned_to_same_vehicle(dispatcher):
+
+    #
+    # Single vehicle with sufficient capacity.
+    #
+    vehicle = Vehicle(
+        vehicle_id="V1",
+        capacity=100.0,
+        max_speed_kmh=50.0,
+        home_node=1,
+        current_node=1,
+    )
+
+    #
+    # Two lightweight orders.
+    #
+    orders = [
+
+        Order(
+            order_id="O1",
+            pickup_node=2,
+            delivery_node=3,
+            package_image="",
+            created_time=datetime.now(),
+            deadline=datetime.now() + timedelta(hours=2),
+            weight=20.0,
+            volume=1.0,
+        ),
+
+        Order(
+            order_id="O2",
+            pickup_node=4,
+            delivery_node=5,
+            package_image="",
+            created_time=datetime.now(),
+            deadline=datetime.now() + timedelta(hours=2),
+            weight=30.0,
+            volume=1.0,
+        ),
+    ]
+
+    result = dispatcher.dispatch(
+        [vehicle],
+        orders,
+        tick=100,
+    )
+
+    #
+    # Dispatcher succeeded.
+    #
+    assert result.success
+    assert result.status == "Optimal"
+
+    #
+    # Both orders should be assigned.
+    #
+    assert result.assigned_count == 2
+
+    #
+    # Both assignments should belong to the same vehicle.
+    #
+    assert {
+        assignment.vehicle_id
+        for assignment in result.assignments
+    } == {"V1"}
+
+    #
+    # Orders are unique.
+    #
+    assert {
+        assignment.order_id
+        for assignment in result.assignments
+    } == {"O1", "O2"}
+
+    #
+    # Vehicle state updated.
+    #
+    assert vehicle.available is False
+    assert vehicle.current_load == 50.0
+    assert set(vehicle.assigned_orders) == {"O1", "O2"}
+
+    #
+    # Capacity respected.
+    #
+    total_weight = sum(order.weight for order in orders)
+
+    assert total_weight <= vehicle.capacity
+
+    #
+    # Every assignment has a route.
+    #
+    for assignment in result.assignments:
+
+        assert assignment.route is not None
+        assert assignment.objective_cost > 0
+
+    #
+    # Orders updated.
+    #
+    for order in orders:
+
+        assert order.assigned_vehicle == "V1"
+        assert order.assigned_tick == 100

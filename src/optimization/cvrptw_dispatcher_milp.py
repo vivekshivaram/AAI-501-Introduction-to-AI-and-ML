@@ -127,16 +127,19 @@ class CVRPTWDispatcherMilp:
         to at most one vehicle.
         """
         for order in orders:
-            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) == 1 )
+            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) >= 1 )
 
     
     def _capacity_constraints(self, problem, assignment, vehicles, orders) -> None:
         """
         Vehicle capacity constraint.
         """
-        for vehicle in vehicles:
-            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id,order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
-            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] for order in orders ) <= 1)
+        #Allow multiple orders per vehicle if there is capacity
+        for vehicle in vehicles: 
+            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
+            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) 
+                         <= (vehicle.capacity - vehicle.current_load) )
+            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] for order in orders ) <= 1)
 
 
     def _solve(self, problem, assignment, vehicles, orders, tick: int) -> tuple:
@@ -189,7 +192,7 @@ class CVRPTWDispatcherMilp:
             route = self._build_route(vehicle, order)
             vehicle.current_route = route
             vehicle.available = False
-            vehicle.current_load = order.weight
+            vehicle.current_load += order.weight # accommodating multiple orders if there is capacity
             vehicle.assigned_orders.append(order.order_id)
             #
             # Vehicle will start from the pickup node.
