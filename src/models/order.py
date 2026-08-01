@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+import datetime
+
 @dataclass
 class Order:
     order_id: str
