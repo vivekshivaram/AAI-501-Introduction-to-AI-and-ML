@@ -1,4 +1,5 @@
 from src.simulation.route import Route
+from dataclasses import dataclass, field
 
 @dataclass
 class Vehicle:

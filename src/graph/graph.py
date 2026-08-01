@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 from src.graph.node import Node
 from src.graph.edge import Edge
+
 from os import path
 """
 Example simulation: 
@@ -193,8 +194,6 @@ class Graph:
         for key, value in stats.items():
             logger.info(f"{key}: {value}")
         logger.info("-------------------------")
-    from models.edge import Edge
-
 
     def outgoing_edges(self, node_id: int) -> list[Edge]:
         """
