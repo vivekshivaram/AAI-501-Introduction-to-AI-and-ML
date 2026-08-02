@@ -17,3 +17,4 @@ class Order:
     assigned_tick: int | None = None
     delivery_tick: int | None = None
     delivered: bool = False
+    preferred_vehicle_type: str | None = None
