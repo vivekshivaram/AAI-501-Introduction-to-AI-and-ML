@@ -127,7 +127,7 @@ class CVRPTWDispatcherMilp:
         to at most one vehicle.
         """
         for order in orders:
-            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) >= 1 )
+            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) == 1 )
 
     
     def _capacity_constraints(self, problem, assignment, vehicles, orders) -> None:
@@ -136,10 +136,10 @@ class CVRPTWDispatcherMilp:
         """
         #Allow multiple orders per vehicle if there is capacity
         for vehicle in vehicles: 
-            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
-            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) 
-                         <= (vehicle.capacity - vehicle.current_load) )
-            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] for order in orders ) <= 1)
+            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
+            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) 
+            #             <= (vehicle.capacity - vehicle.current_load) )
+            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] for order in orders ) <= 1)
 
 
     def _solve(self, problem, assignment, vehicles, orders, tick: int) -> tuple:

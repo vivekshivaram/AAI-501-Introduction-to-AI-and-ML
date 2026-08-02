@@ -277,7 +277,6 @@ def test_reset(
     assert dispatcher._costs == {}
 
 def test_dispatch_multiple_vehicles_multiple_orders(dispatcher):
-
     vehicles = [
 
         Vehicle(
@@ -388,7 +387,7 @@ def test_dispatch_multiple_vehicles_multiple_orders(dispatcher):
     #
     #assert len(assigned_vehicles) == len(result.assignments)
     
-
+""" For now restricting only one order per vehicle thus disabling this test
 def test_multiple_orders_assigned_to_same_vehicle(dispatcher):
 
     #
@@ -492,3 +491,4 @@ def test_multiple_orders_assigned_to_same_vehicle(dispatcher):
 
         assert order.assigned_vehicle == "V1"
         assert order.assigned_tick == 100
+"""
