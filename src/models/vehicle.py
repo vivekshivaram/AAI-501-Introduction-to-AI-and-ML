@@ -12,3 +12,4 @@ class Vehicle:
     available: bool = True
     current_route: Route | None = None
     assigned_orders: list[str] = field(default_factory=list)
+    vehicle_type: str | None = None

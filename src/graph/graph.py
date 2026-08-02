@@ -195,6 +195,10 @@ class Graph:
             logger.info(f"{key}: {value}")
         logger.info("-------------------------")
 
+    def get_node_ids(self) -> list[int]:
+        self._ensure_loaded()
+        return self._node_id_map.keys()
+
     def outgoing_edges(self, node_id: int) -> list[Edge]:
         """
         Returns all outgoing edges from a node.
