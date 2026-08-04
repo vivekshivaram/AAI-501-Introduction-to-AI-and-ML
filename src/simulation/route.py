@@ -1,4 +1,5 @@
 from src.graph.node import Node
+from dataclasses import dataclass
 
 @dataclass
 class Route:

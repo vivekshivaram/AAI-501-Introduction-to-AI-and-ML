@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+import datetime
+
 @dataclass
 class Order:
     order_id: str
@@ -14,3 +17,4 @@ class Order:
     assigned_tick: int | None = None
     delivery_tick: int | None = None
     delivered: bool = False
+    preferred_vehicle_type: str | None = None

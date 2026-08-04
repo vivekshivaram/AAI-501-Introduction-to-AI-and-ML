@@ -65,7 +65,7 @@ class CVRPTWDispatcherMilp:
         if not available_vehicles:
             logger.info("No vehicles available.")
             return
-
+            
         if not pending_orders:
             logger.info("No pending orders.")
             return
@@ -127,43 +127,47 @@ class CVRPTWDispatcherMilp:
         to at most one vehicle.
         """
         for order in orders:
-            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) <= 1 )
+            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) == 1 )
 
     
     def _capacity_constraints(self, problem, assignment, vehicles, orders) -> None:
         """
         Vehicle capacity constraint.
         """
-        for vehicle in vehicles:
-            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id,order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
+        #Allow multiple orders per vehicle if there is capacity
+        for vehicle in vehicles: 
+            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
+            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) 
+            #             <= (vehicle.capacity - vehicle.current_load) )
+            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] for order in orders ) <= 1)
 
 
-    def _solve(self, problem, assignment, vehicles, orders, tick: int) -> None:
+    def _solve(self, problem, assignment, vehicles, orders, tick: int) -> tuple:
         """
         Solve the MILP and update the simulation.
         """
         logger.info("Solving MILP assignment problem...")
-        solver = pulp.PULP_CBC_CMD(msg=False, timeLimit=self._config.max_solver_time)
+        solver = pulp.PULP_CBC_CMD(msg=False, timeLimit=self._config.solver_time_limit)
         problem.solve(solver)
         status = pulp.LpStatus[problem.status]
         logger.info(f"Solver status : {status}")
         
         if status not in ("Optimal", "Feasible"):
             logger.warning("No feasible assignment found.")
-            return
+            return (status, [])
 
         assignments = self._extract_assignments(assignment, vehicles, orders)
 
         if not assignments:
             logger.info("Solver returned zero assignments.")
-            return
-
+            return (status, [])
+            
         logger.info(f"Assigned {len(assignments)} orders.")
-        return (status, self._build_dispatch_assignments(assignments, vehicles, orders))
+        return (status, self._build_dispatch_assignments(assignments, vehicles, orders, tick))
         #self._apply_assignments(assignments, vehicles, orders, tick)
         
 
-    def _extract_assignments(self, assignment, vehicles, orders) -> list[]:
+    def _extract_assignments(self, assignment, vehicles, orders) -> list:
         """
         Extract selected vehicle-order pairs
         from the solved MILP.
@@ -182,13 +186,13 @@ class CVRPTWDispatcherMilp:
         return selected
 
 
-    def _build_dispatch_assignments(self, assignments, vehicles, orders, tick: int) -> DispatchAssignment
+    def _build_dispatch_assignments(self, assignments, vehicles, orders, tick: int) -> DispatchAssignment:
         dispatch_assignments = []
         for vehicle, order in assignments:
             route = self._build_route(vehicle, order)
             vehicle.current_route = route
             vehicle.available = False
-            vehicle.current_load = order.weight
+            vehicle.current_load += order.weight # accommodating multiple orders if there is capacity
             vehicle.assigned_orders.append(order.order_id)
             #
             # Vehicle will start from the pickup node.

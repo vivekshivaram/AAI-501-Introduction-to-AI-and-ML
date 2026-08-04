@@ -8,7 +8,6 @@ from src.graph.node import Node
 from src.graph.edge import Edge
 
 from src.routing.path import Path
-from src.routing.route_planner import RoutePlanner
 from src.routing.heuristic import Heuristic
 from src.routing.exceptions import (
     InvalidNodeError,
@@ -17,7 +16,9 @@ from src.routing.exceptions import (
 
 from src.simulation.delay_map import DelayMap
 
-class AStarRouting(RoutePlanner):
+from src.utils.logger import get_logger
+logger = get_logger(__name__)
+class AStarRouting():
     """
     A* shortest path planner.
     Edge cost =
@@ -53,7 +54,6 @@ class AStarRouting(RoutePlanner):
         came_from: dict[int, tuple[int, Edge]] = {}
         g_score = { start.id: 0.0 }
         closed: set[int] = set()
-
         while open_set:
             _, _, current_id = heapq.heappop(open_set)
             if current_id in closed:
@@ -64,7 +64,7 @@ class AStarRouting(RoutePlanner):
 
             closed.add(current_id)
             current = self._graph.get_node(current_id)
-
+            
             for edge in self._graph.outgoing_edges(current.id):
                 neighbour = edge.destination
                 if neighbour in closed:

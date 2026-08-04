@@ -5,7 +5,7 @@ from abc import abstractmethod
 from src.graph.graph import Graph
 from src.graph.node import Node
 
-from utils.geo_utils import haversine_distance
+from src.utils.geo_utils import haversine_distance
 
 class Heuristic(ABC):
     """
@@ -16,8 +16,8 @@ class Heuristic(ABC):
     def estimate(
         self,
         graph: Graph,
-        current: int,
-        goal: int,
+        current: Node,
+        goal: Node,
     ) -> float:
         """
         Returns an admissible cost estimate.
@@ -30,9 +30,9 @@ class DistanceHeuristic(Heuristic):
         current,
         goal,
     ) -> float:
-        current = graph.get_node(current)
-        goal = graph.get_node(goal)
-
+        current
+        goal
+        
         return haversine_distance(current.latitude, current.longitude, goal.latitude, goal.longitude)
 
 class TravelTimeHeuristic(Heuristic):
