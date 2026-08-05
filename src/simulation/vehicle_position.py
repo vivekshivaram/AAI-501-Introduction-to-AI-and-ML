@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from simulation.route import Route
+
 @dataclass
 class VehiclePosition:
     current_node: int

@@ -1,3 +1,10 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.simulation.simulation_context import SimulationContext
+
+
 class SimulationExecutor:
     def __init__(
         self,

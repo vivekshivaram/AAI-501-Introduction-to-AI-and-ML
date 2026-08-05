@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 @dataclass
 class Statistics:
     sampled_orders: int = 0
