@@ -25,6 +25,13 @@ class MovementEngine:
         if next_node is None:
             result.reached_destination = True
             return result
+        
+        # Handle 0-hop routes (pickup == delivery location)
+        if next_node == position.current_node:
+            result.reached_destination = True
+            result.current_node = position.current_node
+            result.moved = False
+            return result
 
         edge = self._graph.get_edge(position.current_node, next_node)
         result.previous_node = position.current_node

@@ -4,7 +4,7 @@ Feature 1: Geospatial Ingestion & Node Snapping
 
 Converts raw latitude/longitude pairs from the Amazon Last-Mile Delivery dataset
 into offline OSM Node IDs using the pre-built static_city_map.graphml road network
-produced by Engineer A's maps/create_city_map.py utility.
+produced by the create_city_map.py utility.
 
 Deliverable: data/interim/mapped_orders.pkl
   Columns: Order_ID, Store_Node, Drop_Node, Distance_KM,
@@ -75,7 +75,7 @@ def snap_nodes(
         Path to amazon_delivery.csv.
         Defaults to ``data/raw/amazon_delivery.csv``.
     graphml_path : Path, optional
-        Path to static_city_map.graphml (Engineer A output).
+        Path to static_city_map.graphml (output from create_city_map.py).
         Defaults to ``maps/static_city_map.graphml``.
     output_path : Path, optional
         Destination pickle path.
@@ -137,7 +137,7 @@ def snap_nodes(
     logger.info(f"Orders after coordinate check: {len(regional_df):,} (all rows used)")
 
     # ------------------------------------------------------------------ #
-    # 3. Load Engineer A's city map (100 % offline)
+    # 3. Load the city map (100% offline)
     # ------------------------------------------------------------------ #
     logger.info(f"Loading city map: {graphml_path}")
     G = ox.load_graphml(graphml_path)

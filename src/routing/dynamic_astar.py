@@ -8,9 +8,9 @@ context-aware routing that penalises high-friction segments.
 Cost function:
     Weight_ij = Length_ij + (Predicted_Delay × alpha)
 
-Integrates with Engineer A's ``Graph`` wrapper class and the ``DelayPredictor``
+Integrates with the ``Graph`` wrapper class and the ``DelayPredictor``
 trained model. Exposes a weight callable compatible with NetworkX A* and
-Dijkstra, for direct consumption by Engineer 1's dispatcher.
+Dijkstra, for direct consumption by the dispatcher.
 
 Deliverable: src/routing/dynamic_astar.py  (this file)
 
@@ -31,7 +31,7 @@ Usage (from project root):
     )
     # result = {path, total_weight, n_edges, base_length_m, delay_penalty_m}
 
-    # Direct NetworkX integration for Engineer 1's cvrptw_dispatcher:
+    # Direct NetworkX integration for the CVRPTW dispatcher:
     weight_fn = router.get_weight_function(context)
     path = nx.astar_path(G, source, target, weight=weight_fn)
 """
@@ -52,18 +52,18 @@ class DynamicAStar:
     """
     A* pathfinding with ML-predicted delay penalties fused into edge weights.
 
-    Wraps Engineer A's ``Graph`` class and uses the ``DelayPredictor`` model
+    Wraps the ``Graph`` class and uses the ``DelayPredictor`` model
     to compute context-sensitive path costs without network I/O.
 
     Parameters
     ----------
     graph : Graph
-        Engineer A's loaded Graph wrapper (``graph.load()`` must be called).
+        Loaded Graph wrapper (``graph.load()`` must be called).
     predictor : DelayPredictor
         Loaded delay regression model for per-edge friction prediction.
     alpha : float, optional
         Penalty scale factor.  Default 50.0 means 1 minute of predicted delay
-        adds 50 metres to the path cost — tunable by Engineer 1.
+        adds 50 metres to the path cost — tunable by the dispatcher.
     """
 
     def __init__(
@@ -187,7 +187,7 @@ class DynamicAStar:
     def get_weight_function(self, context: dict | None = None):
         """
         Return a weight callable compatible with ``nx.astar_path`` and
-        ``nx.dijkstra_path`` for direct use in Engineer 1's dispatcher.
+        ``nx.dijkstra_path`` for direct use in the dispatcher.
 
         Parameters
         ----------

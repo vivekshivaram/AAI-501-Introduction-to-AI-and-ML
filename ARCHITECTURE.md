@@ -339,7 +339,7 @@ flowchart TD
 
 ---
 
-## 9. Shared Data Contract (cross-engineer schema)
+## 9. Shared Data Contract (cross-component schema)
 
 | Field | Type | Set by | Consumed by |
 |---|---|---|---|

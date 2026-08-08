@@ -1,9 +1,9 @@
 """main.py - LogiSim-AI master simulation script.
 
-Integrates all three engineers' work:
-- Engineer A: Infrastructure, Optimization (MILP, A*, Movement)
-- Engineer B: Data Engineering, ML (OrderLoader, DelayPredictor, Demand Forecast)
-- Engineer C: Vision & RL (CNN Inspector, Q-Learning Pricing)
+Integrates all simulation components:
+- Infrastructure & Optimization (MILP, A*, Movement)
+- Data Engineering & ML (OrderLoader, DelayPredictor, Demand Forecast)
+- Vision & RL (CNN Inspector, Q-Learning Pricing)
 """
 from __future__ import annotations
 import random
@@ -180,7 +180,7 @@ def _check_and_run_setup() -> bool:
 
 
 class OrderSampler:
-    """Engineer B's work: Samples orders from mapped_orders.pkl using OrderLoader."""
+    """Samples orders from mapped_orders.pkl using OrderLoader."""
     
     def __init__(self, orders_per_tick: int = 5) -> None:
         self._orders_per_tick = orders_per_tick
@@ -218,7 +218,7 @@ class OrderSampler:
 
 
 class PackageInspector:
-    """Engineer C's work: Uses ResNet18 CNN to inspect packages for damage."""
+    """Uses ResNet18 CNN to inspect packages for damage."""
     
     def __init__(self, cnn_path: Path | None = None) -> None:
         self._cnn_path = cnn_path or (ARTIFACTS_DIRECTORY / "package_cnn.pt")
@@ -315,7 +315,7 @@ class PackageInspector:
 
 
 class RLEnvironment:
-    """Engineer C's work: Simplified RL environment wrapper for pricing."""
+    """Simplified RL environment wrapper for pricing."""
     
     def __init__(self, env: PricingEnv) -> None:
         self._env = env
@@ -325,8 +325,8 @@ class RLEnvironment:
         """Update environment state based on current simulation context."""
         queue_length = len(context.pending_orders)
         # Get current tick's demand forecast value
-        demand_index = context.tick % len(self._env._demand_forecast)
-        demand_value = self._env._demand_forecast[demand_index]
+        demand_index = context.tick % len(self._env.demand_forecast)
+        demand_value = self._env.demand_forecast[demand_index]
         
         # Encode as state matrix
         state_matrix = self._env.encode_context(
@@ -337,7 +337,7 @@ class RLEnvironment:
 
 
 class RLAgent:
-    """Engineer C's work: Q-Learning agent for dynamic pricing (simplified for now)."""
+    """Q-Learning agent for dynamic pricing (simplified for now)."""
     
     def __init__(self, q_table_path: Path | None = None) -> None:
         self._q_table_path = q_table_path or (ARTIFACTS_DIRECTORY / "q_table.npy")
@@ -375,7 +375,7 @@ class RLAgent:
 
 
 class DispatcherAdapter:
-    """Engineer A's work: MILP-based CVRPTW dispatcher with A* routing."""
+    """MILP-based CVRPTW dispatcher with A* routing."""
     
     def __init__(self, milp: CVRPTWDispatcherMilp) -> None:
         self._milp = milp
@@ -395,33 +395,68 @@ class DispatcherAdapter:
             logger.debug(f"Tick {context.tick}: No feasible dispatch solution found")
             return
         
-        # Remove dispatched orders from pending queue
+        # Move dispatched orders from pending to dispatched list
         dispatched_ids = {a.order_id for a in result.assignments}
-        context.pending_orders = [
-            o for o in context.pending_orders 
-            if o.order_id not in dispatched_ids
-        ]
+        dispatched_orders = []
+        remaining_pending = []
+        
+        for order in context.pending_orders:
+            if order.order_id in dispatched_ids:
+                # Mark order as dispatched
+                order.dispatch_tick = context.tick
+                dispatched_orders.append(order)
+                context.dispatched_orders.append(order)
+            else:
+                remaining_pending.append(order)
+        
+        context.pending_orders = remaining_pending
+        
+        # Update vehicle positions with assigned routes
+        for assignment in result.assignments:
+            position = context.positions.get(assignment.vehicle_id)
+            if position:
+                position.route = assignment.route
+                # Find the vehicle's current node (pickup) in the route
+                # and start from the next node after it
+                vehicle = next((v for v in context.vehicles if v.vehicle_id == assignment.vehicle_id), None)
+                if vehicle:
+                    # Sync position.current_node with vehicle.current_node (pickup node)
+                    position.current_node = vehicle.current_node
+                    
+                    pickup_idx = None
+                    for idx, node in enumerate(assignment.route.nodes):
+                        if node.id == vehicle.current_node:
+                            pickup_idx = idx
+                            break
+                    
+                    if pickup_idx is not None and pickup_idx < len(assignment.route.nodes) - 1:
+                        # Start from next node after pickup
+                        position.route_index = pickup_idx + 1
+                    else:
+                        # Vehicle is already at destination or route is invalid
+                        position.route_index = len(assignment.route.nodes) - 1
         
         logger.info(
-            f"Tick {context.tick}: dispatched {result.assigned_count} orders, "
-            f"{len(context.pending_orders)} orders still pending"
+            f"Tick {context.tick}: dispatched {len(dispatched_orders)} orders, "
+            f"{len(context.pending_orders)} orders still pending, "
+            f"{len(context.dispatched_orders)} in transit"
         )
 
 
 class MovementAdapter:
-    """Engineer A's work: Moves vehicles along their assigned routes."""
+    """Moves vehicles along their assigned routes."""
     
     def __init__(self, engine: MovementEngine) -> None:
         self._engine = engine
 
-    def move(self, context: SimulationContext) -> None:
-        """Move all vehicles one step along their routes."""
-        self._engine.move_all(list(context.vehicles), context.positions)
+    def move(self, context: SimulationContext) -> dict:
+        """Move all vehicles one step along their routes and return results."""
+        return self._engine.move_all(list(context.vehicles), context.positions)
 
 
 def _build_fleet(graph: Graph, n: int = 5) -> tuple[list[Vehicle], dict[str, VehiclePosition]]:
     """
-    Engineer A's work: Build initial fleet using FleetGenerator.
+    Build initial fleet using FleetGenerator.
     
     Args:
         graph: Road network graph
@@ -452,15 +487,15 @@ def _build_fleet(graph: Graph, n: int = 5) -> tuple[list[Vehicle], dict[str, Veh
 
 def main() -> None:
     """
-    Master simulation script - integrates all three engineers' work.
+    Master simulation script - integrates all simulation components.
     
     Flow:
     0. Check and run first-time setup if needed
     1. Load infrastructure (graph, models)
     2. Initialize components:
-       - Engineer B: OrderSampler, DelayPredictor, DemandForecast
-       - Engineer C: PackageInspector (CNN), RLAgent (Q-table)
-       - Engineer A: MILP Dispatcher, A* Router, MovementEngine
+       - Data & ML: OrderSampler, DelayPredictor, DemandForecast
+       - Vision & RL: PackageInspector (CNN), RLAgent (Q-table)
+       - Optimization: MILP Dispatcher, A* Router, MovementEngine
     3. Run simulation loop
     """
     logger.info("=" * 80)
@@ -475,26 +510,26 @@ def main() -> None:
         return
     
     # ============================================================
-    # ENGINEER A: Infrastructure - Load road network graph
+    # Infrastructure - Load road network graph
     # ============================================================
-    logger.info("\n[Engineer A] Loading road network graph...")
+    logger.info("\n[Infrastructure] Loading road network graph...")
     graph = Graph()
     graph.load()
     logger.info(f"Graph loaded: {len(graph.graph.nodes())} nodes, {len(graph.graph.edges())} edges")
     
     # ============================================================
-    # ENGINEER B: Data & ML - Demand forecast and delay prediction
+    # Data & ML - Demand forecast and delay prediction
     # ============================================================
-    logger.info("\n[Engineer B] Loading demand forecast and delay predictor...")
+    logger.info("\n[Data & ML] Loading demand forecast and delay predictor...")
     demand_forecast = load_demand_forecast()
     logger.info(f"Demand forecast loaded: {len(demand_forecast)} hourly values")
     
     predictor = DelayPredictor()
     
     # ============================================================
-    # ENGINEER C: Vision & RL - CNN and Q-learning
+    # Vision & RL - CNN and Q-learning
     # ============================================================
-    logger.info("\n[Engineer C] Initializing vision and RL components...")
+    logger.info("\n[Vision & RL] Initializing vision and RL components...")
     
     # Initialize pricing environment for RL
     pricing_env = PricingEnv(demand_forecast=demand_forecast)
@@ -506,9 +541,9 @@ def main() -> None:
     rl_agent = RLAgent()
     
     # ============================================================
-    # ENGINEER A: Optimization - A* routing and MILP dispatcher
+    # Optimization - A* routing and MILP dispatcher
     # ============================================================
-    logger.info("\n[Engineer A] Setting up routing and dispatch optimization...")
+    logger.info("\n[Optimization] Setting up routing and dispatch optimization...")
     
     # A* routing with travel time heuristic
     heuristic = TravelTimeHeuristic(60.0)  # 60 km/h average speed
@@ -527,19 +562,19 @@ def main() -> None:
     logger.info("\n[Integration] Building simulation executor...")
     
     executor = SimulationExecutor(
-        sampler=OrderSampler(orders_per_tick=5),           # Engineer B
-        inspector=package_inspector,                        # Engineer C
-        predictor=predictor,                                # Engineer B
-        dispatcher=DispatcherAdapter(milp_dispatcher),      # Engineer A
-        rl_environment=RLEnvironment(pricing_env),          # Engineer C
-        rl_agent=rl_agent,                                  # Engineer C
-        movement_engine=MovementAdapter(movement_engine),   # Engineer A
+        sampler=OrderSampler(orders_per_tick=5),           # Data & ML
+        inspector=package_inspector,                        # Vision & RL
+        predictor=predictor,                                # Data & ML
+        dispatcher=DispatcherAdapter(milp_dispatcher),      # Optimization
+        rl_environment=RLEnvironment(pricing_env),          # Vision & RL
+        rl_agent=rl_agent,                                  # Vision & RL
+        movement_engine=MovementAdapter(movement_engine),   # Optimization
     )
     
     # ============================================================
-    # ENGINEER A: Fleet initialization
+    # Fleet initialization
     # ============================================================
-    logger.info("\n[Engineer A] Initializing vehicle fleet...")
+    logger.info("\n[Optimization] Initializing vehicle fleet...")
     vehicles, positions = _build_fleet(graph, n=5)
     
     # ============================================================
@@ -579,12 +614,52 @@ def main() -> None:
     # FINAL SUMMARY
     # ============================================================
     logger.info("\n" + "=" * 80)
-    logger.info("Simulation Complete")
+    logger.info("SIMULATION SUMMARY")
     logger.info("=" * 80)
-    logger.info(f"Total orders delivered: {len(context.delivered_orders)}")
-    logger.info(f"Total orders rejected: {len(context.rejected_orders)}")
-    logger.info(f"Total orders pending: {len(context.pending_orders)}")
-    logger.info(f"Total orders dispatched: {len(context.dispatched_orders)}")
+    
+    # Order counts
+    total_sampled = context.statistics.sampled_orders or (
+        len(context.pending_orders) + 
+        len(context.dispatched_orders) + 
+        len(context.delivered_orders) + 
+        len(context.rejected_orders)
+    )
+    logger.info(f"Total Ticks: {MAX_SIMULATION_STEPS}")
+    logger.info(f"Total Orders Sampled: {total_sampled}")
+    logger.info(f"  - Rejected (Damaged): {len(context.rejected_orders)} ({100 * len(context.rejected_orders) / max(1, total_sampled):.1f}%)")
+    logger.info(f"  - Delivered: {len(context.delivered_orders)} ({100 * len(context.delivered_orders) / max(1, total_sampled):.1f}%)")
+    logger.info(f"  - In Transit: {len(context.dispatched_orders)} ({100 * len(context.dispatched_orders) / max(1, total_sampled):.1f}%)")
+    logger.info(f"  - Still Pending: {len(context.pending_orders)} ({100 * len(context.pending_orders) / max(1, total_sampled):.1f}%)")
+    logger.info("")
+    
+    # Performance metrics
+    logger.info("Performance Metrics:")
+    delivery_rate = context.statistics.get_delivery_rate()
+    logger.info(f"  - Delivery Success Rate: {100 * delivery_rate:.1f}%")
+    
+    avg_delivery_time = context.statistics.get_avg_delivery_time()
+    logger.info(f"  - Average Delivery Time: {avg_delivery_time:.1f} minutes")
+    
+    total_distance_km = context.statistics.total_distance / 1000.0
+    logger.info(f"  - Total Distance Traveled: {total_distance_km:.1f} km")
+    
+    avg_distance = context.statistics.get_avg_distance_per_delivery()
+    logger.info(f"  - Average Distance per Delivery: {avg_distance:.2f} km")
+    logger.info("")
+    
+    # Fleet utilization
+    logger.info("Fleet Utilization:")
+    logger.info(f"  - Total Fleet Size: {len(vehicles)} vehicles")
+    if len(vehicles) > 0:
+        avg_deliveries_per_vehicle = len(context.delivered_orders) / len(vehicles)
+        logger.info(f"  - Average Deliveries per Vehicle: {avg_deliveries_per_vehicle:.1f}")
+    logger.info("")
+    
+    # Economic metrics
+    logger.info("Economic Metrics:")
+    avg_surge = context.statistics.get_avg_surge()
+    logger.info(f"  - Average Surge Multiplier: {avg_surge:.2f}x")
+    
     logger.info("=" * 80)
 
 
