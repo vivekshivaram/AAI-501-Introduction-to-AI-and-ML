@@ -97,8 +97,14 @@ class CVRPTWDispatcherMilp:
 
         for vehicle in vehicles:
             for order in orders:
+                # Skip if order weight exceeds vehicle capacity
                 if order.weight > vehicle.capacity:
+                    logger.debug(
+                        f"Order {order.order_id} ({order.weight:.1f} kg) exceeds "
+                        f"vehicle {vehicle.vehicle_id} capacity ({vehicle.capacity:.1f} kg)"
+                    )
                     continue
+                    
                 path_to_pickup = self._router.shortest_path(vehicle.current_node, order.pickup_node)
                 path_to_delivery = self._router.shortest_path(order.pickup_node, order.delivery_node)
                 self._paths[(vehicle.vehicle_id, order.order_id)] = (path_to_pickup, path_to_delivery)
@@ -108,38 +114,85 @@ class CVRPTWDispatcherMilp:
 
                 self._costs[(vehicle.vehicle_id,order.order_id)] = travel_cost
 
+        logger.info(f"Built cost matrix: {len(self._costs)} feasible vehicle-order pairs")
+
     def _create_variables(self, vehicles: list[Vehicle], orders: list[Order]):
+        """
+        Create binary variables only for feasible vehicle-order pairs.
+        A pair is feasible if it exists in the cost matrix (passed capacity check).
+        """
         assignment = {}
         for vehicle in vehicles:
             for order in orders:
-                assignment[(vehicle.vehicle_id, order.order_id)] = pulp.LpVariable(
-                    f"x_{vehicle.vehicle_id}_{order.order_id}", lowBound=0, upBound=1, cat="Binary"
-                )
+                key = (vehicle.vehicle_id, order.order_id)
+                # Only create variables for feasible assignments
+                if key in self._costs:
+                    assignment[key] = pulp.LpVariable(
+                        f"x_{vehicle.vehicle_id}_{order.order_id}", 
+                        lowBound=0, 
+                        upBound=1, 
+                        cat="Binary"
+                    )
+        logger.info(f"Created {len(assignment)} feasible assignment variables")
         return assignment
 
     def _build_objective(self, problem, assignment) -> None:
-        problem += pulp.lpSum( assignment[key] * ( self._costs[key] + self._config.vehicle_usage_penalty ) for key in assignment )
+        """
+        Minimize total cost while encouraging assignments.
+        The objective balances minimizing routing cost with maximizing number of assignments.
+        """
+        # Total cost = (routing cost + vehicle usage penalty) - (large bonus for making assignment)
+        # The bonus ensures we prefer to assign orders even if it costs slightly more
+        assignment_bonus = 10000.0  # Large value to encourage assignments
+        problem += pulp.lpSum(
+            assignment[key] * (self._costs[key] + self._config.vehicle_usage_penalty - assignment_bonus)
+            for key in assignment
+        )
 
     
     def _assignment_constraints(self, problem, assignment, vehicles, orders) -> None:
         """
-        Every order may be assigned
-        to at most one vehicle.
+        Every order may be assigned to at most one vehicle.
+        Not all orders need to be assigned (when there are more orders than vehicles).
+        Only consider feasible vehicle-order pairs (those with variables).
         """
         for order in orders:
-            problem += ( pulp.lpSum(assignment[(vehicle.vehicle_id, order.order_id)] for vehicle in vehicles) == 1 )
+            # Collect only feasible assignments for this order
+            feasible_assignments = [
+                assignment[(vehicle.vehicle_id, order.order_id)] 
+                for vehicle in vehicles 
+                if (vehicle.vehicle_id, order.order_id) in assignment
+            ]
+            if feasible_assignments:
+                # Each order assigned to at most one vehicle
+                problem += (pulp.lpSum(feasible_assignments) <= 1)
 
     
     def _capacity_constraints(self, problem, assignment, vehicles, orders) -> None:
         """
         Vehicle capacity constraint.
+        Only consider feasible vehicle-order pairs (those with variables).
         """
-        #Allow multiple orders per vehicle if there is capacity
-        for vehicle in vehicles: 
-            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) <= vehicle.capacity)
-            #problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] * order.weight for order in orders) 
-            #             <= (vehicle.capacity - vehicle.current_load) )
-            problem += ( pulp.lpSum( assignment[(vehicle.vehicle_id, order.order_id)] for order in orders ) <= 1)
+        for vehicle in vehicles:
+            # Collect only feasible assignments for this vehicle
+            feasible_weight_assignments = [
+                assignment[(vehicle.vehicle_id, order.order_id)] * order.weight
+                for order in orders
+                if (vehicle.vehicle_id, order.order_id) in assignment
+            ]
+            feasible_count_assignments = [
+                assignment[(vehicle.vehicle_id, order.order_id)]
+                for order in orders
+                if (vehicle.vehicle_id, order.order_id) in assignment
+            ]
+            
+            if feasible_weight_assignments:
+                # Total weight of assigned orders must not exceed vehicle capacity
+                problem += (pulp.lpSum(feasible_weight_assignments) <= vehicle.capacity)
+            
+            if feasible_count_assignments:
+                # Limit to at most 1 order per vehicle for simplicity
+                problem += (pulp.lpSum(feasible_count_assignments) <= 1)
 
 
     def _solve(self, problem, assignment, vehicles, orders, tick: int) -> tuple:
@@ -202,7 +255,8 @@ class CVRPTWDispatcherMilp:
             vehicle.current_node = order.pickup_node
             order.assigned_vehicle = vehicle.vehicle_id
             order.assigned_tick = tick
-            logger.info(f"Vehicle {vehicle.vehicle_id} dispatched for Order {order.order_id}")
+            route_hops = len(route.nodes) - 1 if route.nodes else 0
+            logger.info(f"Vehicle {vehicle.vehicle_id} dispatched for Order {order.order_id} - Route: {route_hops} hops, {route.total_distance:.0f}m")
             dispatch_assignments.append(DispatchAssignment
                                             (
                                                 vehicle_id=vehicle.vehicle_id,

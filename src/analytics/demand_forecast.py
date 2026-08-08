@@ -5,7 +5,7 @@ Feature 3: Macro Demand Forecaster
 Generates a 24-step hourly order volume forecast using SARIMA(1,0,1)(1,1,1,24).
 The seasonal period is 24 h (daily delivery cycle).
 
-Output feeds the reinforcement learning state matrix (Engineer 3).
+Output feeds the reinforcement learning state matrix for dynamic pricing.
 
 Deliverable: data/outputs/demand_forecast.json
   Schema: {"hourly_forecast": [float x 24]}
@@ -35,6 +35,7 @@ from src.config import (
     DATA_OUTPUTS_DIRECTORY,
     DEMAND_FORECAST_FILENAME,
     MAPPED_ORDERS_FILENAME,
+    RANDOM_SEED,
 )
 from src.utils.logger import get_logger
 

@@ -15,7 +15,16 @@ from torch.utils.data import DataLoader
 
 from src.ai.img_loader import ImageDatasetConfig, build_image_dataloaders
 from src.ai.pricing_env import PricingEnv, PricingEnvConfig, load_demand_forecast, state_index_from_matrix
-from src.config import ARTIFACTS_DIRECTORY, DATA_OUTPUTS_DIRECTORY, DEMAND_FORECAST_FILENAME
+from src.config import (
+    ARTIFACTS_DIRECTORY,
+    DATA_OUTPUTS_DIRECTORY,
+    DEMAND_FORECAST_FILENAME,
+    Q_LEARNING_ALPHA,
+    Q_LEARNING_EPSILON,
+    Q_LEARNING_EPSILON_DECAY,
+    Q_LEARNING_MIN_EPSILON,
+    RANDOM_SEED,
+)
 from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
@@ -35,7 +44,7 @@ class PackageCNNTrainingConfig:
     learning_rate: float = 1e-4
     weight_decay: float = 1e-4
     artifact_path: Path = ARTIFACTS_DIRECTORY / "package_cnn.pt"
-    seed: int = 42
+    seed: int = RANDOM_SEED
 
 
 @dataclass(frozen=True)
@@ -45,11 +54,11 @@ class QLearningConfig:
     forecast_path: Path | None = None
     artifact_path: Path = ARTIFACTS_DIRECTORY / "q_table.npy"
     episodes: int = 240
-    alpha: float = 0.15
+    alpha: float = Q_LEARNING_ALPHA
     gamma: float = 0.92
-    epsilon: float = 0.25
-    epsilon_decay: float = 0.99
-    min_epsilon: float = 0.05
+    epsilon: float = Q_LEARNING_EPSILON
+    epsilon_decay: float = Q_LEARNING_EPSILON_DECAY
+    min_epsilon: float = Q_LEARNING_MIN_EPSILON
     max_queue_length: int = 60
 
 

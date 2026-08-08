@@ -1,22 +1,12 @@
 from __future__ import annotations
 import random
 from src.models.vehicle import Vehicle
+from src.config import VEHICLE_TYPES
 
 
 class FleetGenerator:
-    VEHICLE_CAPACITY = {
-        "bicycle": 10.0,
-        "scooter": 20.0,
-        "motorcycle": 30.0,
-        "van": 200.0,
-    }
-
-    VEHICLE_SPEED = {
-        "bicycle": 15.0,
-        "scooter": 30.0,
-        "motorcycle": 45.0,
-        "van": 35.0,
-    }
+    VEHICLE_CAPACITY = {vtype: specs["capacity"] for vtype, specs in VEHICLE_TYPES.items()}
+    VEHICLE_SPEED = {vtype: specs["speed_kmh"] for vtype, specs in VEHICLE_TYPES.items()}
 
     def generate(
         self,

@@ -221,30 +221,34 @@ for tick in range(1000):
 
 ---
 
-## Team Responsibilities
+## Project Status
 
-| Role | Module | Deliverables | Status |
+All simulation components are complete and fully integrated:
+
+| Component | Module | Deliverables | Status |
 |---|---|---|---|
-| Infrastructure & Optimization | `src/graph/` `src/simulation/` `src/optimization/` | `static_city_map.graphml` · `astar_routing.py` · `cvrptw_dispatcher.py` · `main.py` | Partial |
+| Infrastructure & Optimization | `src/graph/` `src/simulation/` `src/optimization/` | `static_city_map.graphml` · `astar_routing.py` · `cvrptw_dispatcher_milp.py` · `main.py` | **Complete** |
 | Data Engineering & ML | `src/ingestion/` `src/analytics/` `src/routing/` | `mapped_orders.pkl` · `delay_forest.pkl` · `demand_forecast.json` · `dynamic_astar.py` | **Complete** |
-| Vision & RL | `src/ai/` | `package_cnn.pt` · `q_table.npy` · `pricing_env.py` · `pricing_engine.py` | Complete |
+| Vision & RL | `src/ai/` | `package_cnn.pt` · `q_table.npy` · `pricing_env.py` · `pricing_engine.py` | **Complete** |
 
-The `SimulationContext` object is the shared handoff between all three engineers each tick.
+The `SimulationContext` object is the shared handoff between all components each tick.
 
 ---
 
-## Remaining Work
+## Key Features
 
-### Infrastructure & Optimization
-- [ ] `src/main.py` — master script wiring all components into a single simulation run
-- [ ] Reward formula `Reward = Revenue − Delay` shared with the pricing team
-
-### Vision & RL
-- [x] `src/ai/img_loader.py` — PyTorch DataLoader for damaged-box package images
-- [x] `src/ai/pricing_env.py` — `gymnasium.Env` subclass; 5-action discrete space (+0 % to +50 %); 5×5 state matrix (queue length × demand bucket)
-- [x] Fine-tune ResNet18 (freeze backbone, replace final layer with binary head) → `artifacts/package_cnn.pt`
-- [x] Train tabular Q-table using `Reward = Revenue − Delay`; inject `demand_forecast.json` into state → `artifacts/q_table.npy`
-- [x] `src/ai/pricing_engine.py` — operational wrapper connecting Q-table to live simulation context
+### Completed Implementation
+- [x] `src/main.py` — master script wiring all components into a single simulation run
+- [x] **MILP-based CVRPTW Dispatcher** — PuLP-based optimization for vehicle-order assignment
+- [x] **A* Routing with ML Delay Fusion** — Dynamic routing with delay predictions
+- [x] **Vehicle Movement Engine** — Tick-based movement along assigned routes
+- [x] **Order Lifecycle Tracking** — pending → dispatched → delivered with timestamps
+- [x] **Delivery Completion Handling** — Automatic vehicle reset and order completion
+- [x] **Statistics & Summary Output** — Comprehensive simulation metrics
+- [x] **ResNet18 Package Inspection** — Fine-tuned CNN for damaged package detection
+- [x] **Q-Learning Pricing Agent** — Tabular Q-table for dynamic surge pricing
+- [x] **Demand Forecasting** — Holt-Winters 24-hour ahead forecast
+- [x] **Delay Prediction Model** — Random Forest regressor for delivery delay estimation
 
 ---
 
@@ -257,5 +261,5 @@ No hardcoded paths anywhere else in the codebase.
 |---|---|---|
 | `DELAY_ALPHA` | `50.0` | Minutes of delay → metres of extra path cost |
 | `DEFAULT_SPEED_KMH` | `40` | Fallback vehicle speed |
-| `MAX_SIMULATION_STEPS` | `1000` | Tick limit per run |
+| `MAX_SIMULATION_STEPS` | `100` | Tick limit per run (configurable for longer simulations) |
 
