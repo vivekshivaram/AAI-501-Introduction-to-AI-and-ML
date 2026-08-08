@@ -6,9 +6,16 @@ Integrates all simulation components:
 - Vision & RL (CNN Inspector, Q-Learning Pricing)
 """
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Add project root to Python path to enable src imports
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import random
 from datetime import datetime, timedelta
-from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
@@ -21,6 +28,14 @@ from src.config import (
     MAPPED_ORDERS_FILENAME,
     MAX_SIMULATION_STEPS,
     DEFAULT_VEHICLE_CAPACITY,
+    FLEET_SIZE,
+    ORDERS_PER_TICK,
+    ORDER_DEADLINE_HOURS,
+    PACKAGE_DAMAGE_REJECTION_RATE,
+    SIMULATION_STEP_MINUTES,
+    ROUTING_AVERAGE_SPEED_KMH,
+    SURGE_MULTIPLIERS,
+    DEFAULT_SURGE_MULTIPLIER,
 )
 from src.graph.graph import Graph
 from src.analytics.delay_model import DelayPredictor
@@ -209,7 +224,7 @@ class OrderSampler:
             
             # Update timestamps to current simulation time
             order.created_time = context.current_time
-            order.deadline = context.current_time + timedelta(hours=4)
+            order.deadline = context.current_time + timedelta(hours=ORDER_DEADLINE_HOURS)
             
             sampled.append(order)
             context.pending_orders.append(order)
@@ -281,36 +296,38 @@ class PackageInspector:
         
         logger.info(f"PackageInspector loaded CNN with {num_classes} output classes")
     
-    def inspect(self, orders: list[Order]) -> list[Order]:
+    def inspect(self, orders: list[Order], context: 'SimulationContext') -> list[Order]:
         """
         Inspect packages using CNN model.
         
         For now, since we don't have actual package images in the simulation,
-        we mark all packages as intact. In a real deployment, this would:
+        we simulate rejections. In a real deployment, this would:
         1. Load package images from order.package_image path
         2. Preprocess images (resize to 224x224, normalize)
         3. Run inference with the CNN
         4. Set order.inspection_passed based on prediction
         """
         intact: list[Order] = []
+        rejected: list[Order] = []
         
         for order in orders:
             # TODO: In production, this would load and classify actual images
-            # For now, mark all as intact (or use a random simulation)
             if self._model is None:
-                # No model loaded, accept all packages
-                order.inspection_passed = True
+                # No model loaded, simulate inspection using configured rejection rate
+                order.inspection_passed = random.random() > PACKAGE_DAMAGE_REJECTION_RATE
             else:
-                # Simulate inspection: in production this would use real images
-                # For now, randomly reject ~5% to simulate damaged packages
-                order.inspection_passed = random.random() > 0.05
+                # Model loaded: run actual CNN inference
+                # For now, still using simulation until we have real images
+                order.inspection_passed = random.random() > PACKAGE_DAMAGE_REJECTION_RATE
             
             if order.inspection_passed:
                 intact.append(order)
             else:
+                rejected.append(order)
+                context.rejected_orders.append(order)
                 logger.debug(f"Order {order.order_id} rejected: damaged package detected")
         
-        logger.info(f"PackageInspector: {len(intact)}/{len(orders)} packages passed inspection")
+        logger.info(f"PackageInspector: {len(intact)}/{len(orders)} packages passed inspection, {len(rejected)} rejected")
         return intact
 
 
@@ -342,7 +359,7 @@ class RLAgent:
     def __init__(self, q_table_path: Path | None = None) -> None:
         self._q_table_path = q_table_path or (ARTIFACTS_DIRECTORY / "q_table.npy")
         self._q_table: np.ndarray | None = None
-        self._action_multipliers = [1.0, 1.125, 1.25, 1.375, 1.5]  # 5 surge actions
+        self._action_multipliers = SURGE_MULTIPLIERS
         
         # Try to load Q-table
         try:
@@ -359,7 +376,7 @@ class RLAgent:
         """Select surge multiplier based on current state."""
         if self._q_table is None:
             # No Q-table loaded, use default pricing
-            return 1.0
+            return DEFAULT_SURGE_MULTIPLIER
         
         # Convert state matrix to state index
         if isinstance(state, np.ndarray):
@@ -546,7 +563,7 @@ def main() -> None:
     logger.info("\n[Optimization] Setting up routing and dispatch optimization...")
     
     # A* routing with travel time heuristic
-    heuristic = TravelTimeHeuristic(60.0)  # 60 km/h average speed
+    heuristic = TravelTimeHeuristic(ROUTING_AVERAGE_SPEED_KMH)
     astar_routing = AStarRouting(graph, heuristic, DelayMap())
     
     # MILP-based CVRPTW dispatcher
@@ -562,7 +579,7 @@ def main() -> None:
     logger.info("\n[Integration] Building simulation executor...")
     
     executor = SimulationExecutor(
-        sampler=OrderSampler(orders_per_tick=5),           # Data & ML
+        sampler=OrderSampler(orders_per_tick=ORDERS_PER_TICK),           # Data & ML
         inspector=package_inspector,                        # Vision & RL
         predictor=predictor,                                # Data & ML
         dispatcher=DispatcherAdapter(milp_dispatcher),      # Optimization
@@ -575,7 +592,7 @@ def main() -> None:
     # Fleet initialization
     # ============================================================
     logger.info("\n[Optimization] Initializing vehicle fleet...")
-    vehicles, positions = _build_fleet(graph, n=5)
+    vehicles, positions = _build_fleet(graph, n=FLEET_SIZE)
     
     # ============================================================
     # Create simulation context
@@ -595,7 +612,7 @@ def main() -> None:
     logger.info("=" * 80 + "\n")
     
     for tick in range(MAX_SIMULATION_STEPS):
-        context.current_time += timedelta(minutes=1)
+        context.current_time += timedelta(minutes=SIMULATION_STEP_MINUTES)
         
         # Execute one simulation tick
         executor.execute_tick(context)
@@ -634,7 +651,9 @@ def main() -> None:
     
     # Performance metrics
     logger.info("Performance Metrics:")
-    delivery_rate = context.statistics.get_delivery_rate()
+    # Calculate success rate based on processed orders (excluding pending)
+    processed_orders = len(context.delivered_orders) + len(context.rejected_orders) + len(context.dispatched_orders)
+    delivery_rate = len(context.delivered_orders) / max(1, processed_orders)
     logger.info(f"  - Delivery Success Rate: {100 * delivery_rate:.1f}%")
     
     avg_delivery_time = context.statistics.get_avg_delivery_time()

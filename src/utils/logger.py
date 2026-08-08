@@ -1,11 +1,21 @@
 import logging
 import sys
 from pathlib import Path
+import warnings
 
 from src.config import LOG_DIRECTORY
 
 LOG_DIRECTORY.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIRECTORY / "simulation.log"
+
+# Configure sklearn logging level
+logging.getLogger('sklearn').setLevel(logging.INFO)
+
+# Suppress specific sklearn warnings
+warnings.filterwarnings('ignore', message='.*sklearn.utils.parallel.delayed.*', category=UserWarning)
+
+# Suppress PuLP deprecation warnings
+warnings.filterwarnings('ignore', message='.*Constructing LpVariable.*', category=DeprecationWarning)
 
 def get_logger(name: str, log_level = logging.INFO, log_file: str = LOG_FILE):
     logger = logging.getLogger(name)

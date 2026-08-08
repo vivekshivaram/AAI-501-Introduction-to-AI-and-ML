@@ -35,7 +35,7 @@ class SimulationExecutor:
         orders = self.sampler.sample(context)
 
         # 2 - Inspect packages (reject damaged ones)
-        inspected = self.inspector.inspect(orders)
+        inspected = self.inspector.inspect(orders, context)
 
         # 3 - Predict delays for routing
         self.predictor.predict(context)

@@ -40,6 +40,7 @@ from src.config import (
     DATA_INTERIM_DIRECTORY,
     DELAY_MODEL_FILENAME,
     MAPPED_ORDERS_FILENAME,
+    RANDOM_SEED,
 )
 from src.utils.logger import get_logger
 
@@ -81,7 +82,7 @@ def _synthetic_target(df: pd.DataFrame) -> np.ndarray:
         .values
     )
 
-    np.random.seed(42)
+    np.random.seed(RANDOM_SEED)
     raw = (
         df["Distance_KM"].values * 0.7
         + weather_penalty
