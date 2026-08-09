@@ -40,7 +40,8 @@ __pycache__/
 data/raw/*graphml 
 
 #output
-data/outputs/
+data/outputs/*.csv
+data/outputs/*.json
 data/interim/
 
 # Artifacts

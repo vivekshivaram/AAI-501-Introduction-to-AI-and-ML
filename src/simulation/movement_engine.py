@@ -1,8 +1,8 @@
 from __future__ import annotations
-from graph.graph import Graph
-from models.vehicle import Vehicle
-from simulation.vehicle_position import VehiclePosition
-from simulation.movement_result import MovementResult
+from src.graph.graph import Graph
+from src.models.vehicle import Vehicle
+from src.simulation.vehicle_position import VehiclePosition
+from src.simulation.movement_result import MovementResult
 
 class MovementEngine:
     """

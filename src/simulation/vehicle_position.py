@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from simulation.route import Route
+from src.simulation.route import Route
 
 @dataclass
 class VehiclePosition:
